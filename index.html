@@ -132,10 +132,11 @@
   <!-- PASO 1 -->
   <div id="paso1">
     <div class="apikey-banner">
-      <span class="apikey-label">🔑 API KEY ANTHROPIC:</span>
-      <input type="password" id="apikey-input" placeholder="sk-ant-api03-..." />
+      <span class="apikey-label">🔑 API KEY GEMINI:</span>
+      <input type="password" id="apikey-input" placeholder="AIza..." />
       <button onclick="guardarApiKey()">GUARDAR</button>
       <span id="apikey-status" class="apikey-ok" style="display:none">✓ Guardada</span>
+      <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:11px;color:#f5a623;text-decoration:none;">Obtener gratis →</a>
     </div>
 
     <div class="paso-label">PASO 1</div>
@@ -279,27 +280,8 @@ function pillClick(n){
 // SUBIR PDF
 function handleFile(input){ if(input.files[0]) procesarPDF(input.files[0]); }
 
-async function procesarPDF(file){
-  const key=getKey();
-  if(!key){
-    const e=document.getElementById('err-paso1');
-    e.textContent='⚠️ Ingresá tu API Key de Anthropic arriba y tocá GUARDAR antes de subir el plano.';
-    e.style.display=''; return;
-  }
-  document.getElementById('err-paso1').style.display='none';
-  document.getElementById('dz-normal').style.display='none';
-  document.getElementById('dz-loading').style.display='';
-  try{
-    const b64=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('Error')); r.readAsDataURL(file); });
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({
-        model:"claude-sonnet-4-20250514", max_tokens:1500,
-        messages:[{role:"user",content:[
-          {type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},
-          {type:"text",text:`Sos asistente de una metalúrgica argentina que fabrica galerías y techos de PVC.
-Analizá el plano y devolvé SOLO JSON puro sin backticks:
+const PROMPT=`Sos asistente de una metalúrgica argentina que fabrica galerías y techos de PVC.
+Analizá el plano y devolvé SOLO JSON puro sin backticks ni texto extra:
 {
   "cliente":"nombre",
   "ot":"número OT",
@@ -314,13 +296,36 @@ REGLAS CLAVE:
 - PAÑOS = cada módulo perpendicular al largo, identificado por su ANCHO (ej: 116cm y 200cm son DOS paños distintos)
 - Las medidas horizontales del plano que son MENORES que el largo total son los anchos de cada paño
 - Cenefas están listadas al pie del plano; si dice "c/solape" -> solape:true
-- Si no encontrás un dato ponés null`}
-        ]}]
+- Si no encontrás un dato ponés null`;
+
+async function procesarPDF(file){
+  const key=getKey();
+  if(!key){
+    const e=document.getElementById('err-paso1');
+    e.textContent='⚠️ Ingresá tu API Key de Gemini arriba y tocá GUARDAR antes de subir el plano.';
+    e.style.display=''; return;
+  }
+  document.getElementById('err-paso1').style.display='none';
+  document.getElementById('dz-normal').style.display='none';
+  document.getElementById('dz-loading').style.display='';
+  try{
+    const b64=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('Error leyendo archivo')); r.readAsDataURL(file); });
+
+    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        contents:[{parts:[
+          {inline_data:{mime_type:"application/pdf",data:b64}},
+          {text:PROMPT}
+        ]}],
+        generationConfig:{temperature:0,maxOutputTokens:1500}
       })
     });
+
     const data=await resp.json();
     if(data.error) throw new Error(data.error.message);
-    const txt=(data.content||[]).map(i=>i.text||'').join('');
+    const txt=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
     const parsed=JSON.parse(txt.replace(/```json|```/g,'').trim());
 
     if(parsed.cliente) document.getElementById('f-cliente').value=parsed.cliente;
