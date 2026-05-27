@@ -135,6 +135,7 @@
       <span class="apikey-label">🔑 API KEY GEMINI:</span>
       <input type="password" id="apikey-input" placeholder="AIza..." />
       <button onclick="guardarApiKey()">GUARDAR</button>
+      <button onclick="cambiarApiKey()" id="btn-cambiar" style="display:none;background:transparent;border:1px solid #ff8800;color:#ff8800;padding:8px 14px;border-radius:4px;font-size:12px;cursor:pointer;font-family:'Courier New',monospace;">🔄 CAMBIAR</button>
       <span id="apikey-status" class="apikey-ok" style="display:none">✓ Guardada</span>
       <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:11px;color:#f5a623;text-decoration:none;">Obtener gratis →</a>
     </div>
@@ -248,15 +249,31 @@ function corte(m,a,b){ return Math.round((m-esp(a)-esp(b))*10)/10; }
 // API KEY
 function guardarApiKey(){
   const k=document.getElementById('apikey-input').value.trim();
-  if(!k) return;
+  if(!k||k.includes('•')) return;
   localStorage.setItem('ak',k);
   document.getElementById('apikey-status').style.display='';
   document.getElementById('apikey-input').value='••••••••••••••••';
+  document.getElementById('apikey-input').disabled=true;
+  document.getElementById('btn-cambiar').style.display='';
 }
-function getKey(){ return localStorage.getItem('ak')||'AIzaSyDL15YnAOm08jZ5sKctq3YW_O0uNJzKp8g'; }
+function cambiarApiKey(){
+  localStorage.removeItem('ak');
+  document.getElementById('apikey-input').value='';
+  document.getElementById('apikey-input').disabled=false;
+  document.getElementById('apikey-input').placeholder='AIza...';
+  document.getElementById('apikey-status').style.display='none';
+  document.getElementById('btn-cambiar').style.display='none';
+  document.getElementById('apikey-input').focus();
+}
+function getKey(){ return localStorage.getItem('ak')||''; }
 
 window.addEventListener('load',()=>{
-  if(getKey()){ document.getElementById('apikey-input').value='••••••••••••••••'; document.getElementById('apikey-status').style.display=''; }
+  if(getKey()){
+    document.getElementById('apikey-input').value='••••••••••••••••';
+    document.getElementById('apikey-input').disabled=true;
+    document.getElementById('apikey-status').style.display='';
+    document.getElementById('btn-cambiar').style.display='';
+  }
   iniciarListas();
 });
 
